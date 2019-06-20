@@ -73,7 +73,7 @@ public class Main {
 
         //实例化一个不用传参的对象，用默认的数据
         Paillier paillier = new Paillier();
-        Counter counter = new Counter(paillier);
+        Counter counter = new Counter(paillier, true);
         List<BigInteger> public_key = counter.GetPublicKey();
 
         //模拟投票：
@@ -102,10 +102,10 @@ public class Main {
         }
         System.out.println("voter1_em = " + voter1_em.toString());
         System.out.println("voter2_em = " + voter2_em.toString());
-        List<List<BigInteger>> input_em = new ArrayList<List<BigInteger>>();
-        input_em.add(voter1_em);
-        input_em.add(voter2_em);
-        List<BigInteger> res_em = counter.MergeVoting(input_em);
+        counter.InitMergeVoting();
+        counter.MergeVoting(voter1_em);
+        counter.MergeVoting(voter2_em);
+        List<BigInteger> res_em = counter.GetMergeVotingResult();
         System.out.println("res_em = " + res_em.toString());
         List<BigInteger> res = new ArrayList<>();
         boolean pass = true;
@@ -125,9 +125,80 @@ public class Main {
 
     }
 
+    public static void workFlow(){
+
+        //模拟投票：
+        //      投票者: voter1， voter2（拥有公钥）
+        //      候选人：candidate1， candidate2（拥有公钥）
+        //      计票者：counter（拥有公钥，可参与投票）
+        //      公布者：publisher（拥有公钥和密钥，可参与投票）
+
+        //实例化一个不用传参的加密器
+        Paillier paillier = new Paillier();
+        // 传入一个参数Paillier
+//        Counter counter = new Counter(paillier, false); //可控制有无密钥
+        //或者不传参
+        // Counter counter = new Counter(); //无密钥类型
+
+        // 投票者明文票型
+        System.out.println("==Test Voting Counter================================================================");
+
+        // 投票者 voter1
+        List<BigInteger> voter1_m = new ArrayList<>();
+        voter1_m.add(BigInteger.valueOf(2));
+        voter1_m.add(BigInteger.valueOf(0));
+        System.out.println("voter1_m = " + voter1_m.toString());
+        Counter voter1 = new Counter(paillier, false); // 投票者1，无密钥
+
+        // 投票者 voter2
+        List<BigInteger> voter2_m = new ArrayList<>();
+        voter2_m.add(BigInteger.valueOf(1));
+        voter2_m.add(BigInteger.valueOf(1));
+        System.out.println("voter2_m = " + voter2_m.toString());
+        Counter voter2 = new Counter(paillier, false); // 投票者2，无密钥
+
+        // 投票者 voter2
+        List<BigInteger> voter3_m = new ArrayList<>();
+        voter3_m.add(BigInteger.valueOf(0));
+        voter3_m.add(BigInteger.valueOf(2));
+        System.out.println("voter3_m = " + voter3_m.toString());
+        Counter voter3 = new Counter(paillier, false); // 投票者3，也是计票者，无密钥
+
+        // 投票者 voter2
+        List<BigInteger> voter4_m = new ArrayList<>();
+        voter4_m.add(BigInteger.valueOf(0));
+        voter4_m.add(BigInteger.valueOf(1));
+        System.out.println("voter4_m = " + voter4_m.toString());
+        Counter voter4 = new Counter(paillier, true); // 投票者4，也是公布者，有密钥
+
+        // 投票者们对票型加密
+        List<BigInteger> voter1_em = voter1.Encryption(voter1_m);
+        List<BigInteger> voter2_em = voter1.Encryption(voter2_m);
+        List<BigInteger> voter3_em = voter1.Encryption(voter3_m);
+        List<BigInteger> voter4_em = voter1.Encryption(voter4_m);
+        System.out.println("voter1_em = " + voter1_em.toString());
+        System.out.println("voter2_em = " + voter2_em.toString());
+        System.out.println("voter3_em = " + voter3_em.toString());
+        System.out.println("voter4_em = " + voter4_em.toString());
+
+        // 投票者们将加密后的票型发送给投票者3，即计票者，计票者进行统计
+        voter3.InitMergeVoting();
+        voter3.MergeVoting(voter1_em);
+        voter3.MergeVoting(voter2_em);
+        voter3.MergeVoting(voter3_em);
+        voter3.MergeVoting(voter4_em);
+        List<BigInteger> res_em = voter3.GetMergeVotingResult();
+        System.out.println("res_em = " + res_em.toString());
+
+        //计票者将统计结果发送给公布者，公布者进行解密，公布结果
+        List<BigInteger> res = voter4.Decryption(res_em);
+        System.out.println("res = " + res.toString());
+    }
+
     public static void main(String[] args) {
         // write your code here
         testPaillier();
         testCounter();
+        workFlow();
     }
 }

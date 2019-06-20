@@ -14,38 +14,67 @@ import java.util.List;
  */
 
 public class Counter {
-    public BigInteger n, nsquare, g;
-    public int bitLength;
-    public Counter(Paillier p){
-        n = p.n;
-        nsquare = p.nsquare;
-        g = p.g;
-        bitLength = p.bitLength;
+    private Paillier paillier;
+    private boolean decryption;
+    private List<BigInteger> merge_voting_result;
+    private int voting_num;
+    public Counter(Paillier p, boolean _decryption){
+        paillier = p;
+        decryption = _decryption;
+        merge_voting_result = null;
+        voting_num = 0;
+    }
+    public  Counter() {
+        paillier = new Paillier();
+        decryption = true;
+        merge_voting_result = null;
+        voting_num = 0;
     }
     public List<BigInteger> GetPublicKey() {
         List<BigInteger> res = new ArrayList<>();
-        res.add(n);
-        res.add(g);
-        res.add(BigInteger.valueOf(bitLength));
+        res.add(paillier.n);
+        res.add(paillier.g);
+        res.add(BigInteger.valueOf(paillier.bitLength));
         return res;
     }
-    public List<BigInteger> MergeVoting(List<List<BigInteger>> val){
-        List<BigInteger> res = new ArrayList<>();
+    public void InitMergeVoting() {
+        merge_voting_result = null;
+        voting_num = 0;
+    }
+    public int MergeVoting(List<BigInteger> val){
         int size = val.size();
-        if (size > 0) {
-            int num = val.get(0).size();
-            for (int i = 0;i < num;i++) {
-                res.add(BigInteger.valueOf(1));
-            }
+        if (merge_voting_result == null) {
+            merge_voting_result = new ArrayList<>();
             for (int i = 0;i < size;i++) {
-                if (val.get(i).size() != num) {
-                    continue;
-                }
-                for (int j = 0;j < num;j++){
-                    res.set(j, res.get(j).multiply(val.get(i).get(j)).mod(nsquare));
-                }
+                merge_voting_result.add(BigInteger.valueOf(1));
             }
         }
-        return res;
+        else if (size != merge_voting_result.size()) {
+            return voting_num;
+        }
+        voting_num++;
+        for (int j = 0;j < size;j++){
+            merge_voting_result.set(j, merge_voting_result.get(j).multiply(val.get(j)).mod(paillier.nsquare));
+        }
+        return voting_num;
+    }
+    public List<BigInteger> GetMergeVotingResult() {
+        return merge_voting_result;
+    }
+    public List<BigInteger> Encryption(List<BigInteger> val) {
+        List<BigInteger> result = new ArrayList<>();
+        for (int i = 0;i < val.size();i++) {
+            result.add(paillier.Encryption(val.get(i)));
+        }
+        return result;
+    }
+    public List<BigInteger> Decryption(List<BigInteger> val) {
+        List<BigInteger> result = new ArrayList<>();
+        if (decryption) {
+            for (int i = 0;i < val.size();i++) {
+                result.add(paillier.Decryption(val.get(i)));
+            }
+        }
+        return result;
     }
 }
