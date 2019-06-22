@@ -30,18 +30,31 @@ public class Counter {
         merge_voting_result = null;
         voting_num = 0;
     }
+    public Counter(List<BigInteger> publicKey) {
+        paillier = new Paillier(publicKey.get(0), publicKey.get(1), publicKey.get(2), publicKey.get(3).intValue());
+        decryption = false;
+        merge_voting_result = null;
+        voting_num = 0;
+    }
+    public Counter(byte[] public_key) {
+        List<BigInteger> publicKey = Helper.BytesToBigIntegetList(public_key);
+        paillier = new Paillier(publicKey.get(0), publicKey.get(1), publicKey.get(2), publicKey.get(3).intValue());
+        decryption = false;
+        merge_voting_result = null;
+        voting_num = 0;
+    }
     public List<BigInteger> GetPublicKey() {
-        List<BigInteger> res = new ArrayList<>();
-        res.add(paillier.n);
-        res.add(paillier.g);
-        res.add(BigInteger.valueOf(paillier.bitLength));
-        return res;
+        return paillier.GetPublicKey();
+    }
+    public byte[] GetBytesPublicKey() {
+        return paillier.GetBytesPublicKey();
     }
     public void InitMergeVoting() {
         merge_voting_result = null;
         voting_num = 0;
     }
     public int MergeVoting(List<BigInteger> val){
+        List<BigInteger> public_key = paillier.GetPublicKey();
         int size = val.size();
         if (merge_voting_result == null) {
             merge_voting_result = new ArrayList<>();
@@ -54,7 +67,7 @@ public class Counter {
         }
         voting_num++;
         for (int j = 0;j < size;j++){
-            merge_voting_result.set(j, merge_voting_result.get(j).multiply(val.get(j)).mod(paillier.nsquare));
+            merge_voting_result.set(j, merge_voting_result.get(j).multiply(val.get(j)).mod(public_key.get(1)));
         }
         return voting_num;
     }

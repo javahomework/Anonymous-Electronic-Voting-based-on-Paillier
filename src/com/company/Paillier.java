@@ -1,5 +1,6 @@
 package com.company;
 import java.math.*;
+import java.security.SecureRandom;
 import java.util.*;
 
 
@@ -23,44 +24,49 @@ import java.util.*;
 
 public class Paillier {
     private BigInteger p, q, lambda;
-    public BigInteger n, nsquare, g;
-    public int bitLength;
+    private BigInteger n, nsquare, g;
+    private int bitLength;
+    private boolean decryption;
 
-    public Paillier(int bitLengthVal, int certainty) {
-        for (int i = 0;i < 1000;i++) {
-            if (KeyGeneration(bitLengthVal, certainty)) {
+    public Paillier(int bitLengthVal) {
+        while (true) {
+            if (KeyGeneration(bitLengthVal)) {
+                decryption = true;
                 return;
             }
         }
-        System.out.println("Can not generate proper key!");
-        System.exit(1);
     }
 
     public Paillier() {
-        for (int i = 0;i < 1000;i++) {
-            if (KeyGeneration(512, 64)) {
+        while (true) {
+            if (KeyGeneration(512)) {
+                decryption = true;
                 return;
             }
         }
-        System.out.println("Can not generate proper key!");
-        System.exit(1);
+    }
+
+    public Paillier(BigInteger _n, BigInteger _nsquare, BigInteger _g, int _bitLength) {
+        n = _n;
+        nsquare = _nsquare;
+        g = _g;
+        bitLength = _bitLength;
+        p = BigInteger.ONE;
+        q = BigInteger.ONE;
+        lambda = BigInteger.ONE;
+        decryption = false;
     }
 
     /**
      * Generate public key: n,g       secret key: lamada
      * @param bitLengthVal
      *            number of bits of modulus.
-     * @param certainty
-     *            The probability that the new BigInteger represents a prime
-     *            number will exceed (1 - 2^(-certainty)). The execution time of
-     *            this constructor is proportional to the value of this
-     *            parameter.
      */
-    public boolean KeyGeneration(int bitLengthVal, int certainty) {
+    public boolean KeyGeneration(int bitLengthVal) {
         bitLength = bitLengthVal;
         //构造两个随机生成的正大质数
-        p = new BigInteger(bitLength / 2, certainty, new Random());
-        q = new BigInteger(bitLength / 2, certainty, new Random());
+        p = BigInteger.probablePrime(bitLength / 2, new SecureRandom());
+        q = BigInteger.probablePrime(bitLength / 2, new SecureRandom());
         n = p.multiply(q);
         nsquare = n.multiply(n);
         for(int i = 0;i < 10000;i++) {
@@ -84,26 +90,72 @@ public class Paillier {
 
     public BigInteger Encryption(BigInteger m) {
         //构造一个随机生成的 BigInteger，它是在 0 到 (2numBits - 1)（包括）范围内均匀分布的值。
-        BigInteger r = new BigInteger(bitLength, new Random());
+        BigInteger r = new BigInteger(bitLength, new SecureRandom());
         return g.modPow(m, nsquare).multiply(r.modPow(n, nsquare)).mod(nsquare);
     }
 
-    public BigInteger EncryptionWithPublicKey(BigInteger m, BigInteger r, BigInteger _n, BigInteger _g) {
+    public BigInteger EncryptionWithPublicKey(BigInteger m, BigInteger r, List<BigInteger> publicKey) {
         //构造一个随机生成的 BigInteger，它是在 0 到 (2numBits - 1)（包括）范围内均匀分布的值。
+        BigInteger _n = publicKey.get(0),
+                _g = publicKey.get(2);
         BigInteger _nsquare = _n.multiply(_n);
         return _g.modPow(m, _nsquare).multiply(r.modPow(_n, _nsquare)).mod(_nsquare);
     }
 
-    public BigInteger EncryptionWithPublicKey(BigInteger m, BigInteger _n, BigInteger _g, int _bitLength) {
+    public BigInteger EncryptionWithBytesPublicKey(BigInteger m, BigInteger r, byte[] public_key) {
         //构造一个随机生成的 BigInteger，它是在 0 到 (2numBits - 1)（包括）范围内均匀分布的值。
-        BigInteger r = new BigInteger(_bitLength, new Random());
+        List<BigInteger> publicKey = Helper.BytesToBigIntegetList(public_key);
+        BigInteger _n = publicKey.get(0),
+                _g = publicKey.get(2);
+        BigInteger _nsquare = _n.multiply(_n);
+        return _g.modPow(m, _nsquare).multiply(r.modPow(_n, _nsquare)).mod(_nsquare);
+    }
+
+    public BigInteger EncryptionWithPublicKey(BigInteger m, List<BigInteger> publicKey) {
+        //构造一个随机生成的 BigInteger，它是在 0 到 (2numBits - 1)（包括）范围内均匀分布的值。
+        int _bitLength = publicKey.get(3).intValue();
+        BigInteger _n = publicKey.get(0),
+                _g = publicKey.get(2);
+        BigInteger r = new BigInteger(_bitLength, new SecureRandom());
+        BigInteger _nsquare = _n.multiply(_n);
+        return _g.modPow(m, _nsquare).multiply(r.modPow(_n, _nsquare)).mod(_nsquare);
+    }
+
+    public BigInteger EncryptionWithBytesPublicKey(BigInteger m, byte[] public_key) {
+        //构造一个随机生成的 BigInteger，它是在 0 到 (2numBits - 1)（包括）范围内均匀分布的值。
+        List<BigInteger> publicKey = Helper.BytesToBigIntegetList(public_key);
+        int _bitLength = publicKey.get(3).intValue();
+        BigInteger _n = publicKey.get(0),
+                _g = publicKey.get(2);
+        BigInteger r = new BigInteger(_bitLength, new SecureRandom());
         BigInteger _nsquare = _n.multiply(_n);
         return _g.modPow(m, _nsquare).multiply(r.modPow(_n, _nsquare)).mod(_nsquare);
     }
 
     public BigInteger Decryption(BigInteger c) {
-        BigInteger u1 = c.modPow(lambda, nsquare);
-        BigInteger u2 = g.modPow(lambda, nsquare);
-        return (u1.subtract(BigInteger.ONE).divide(n)).multiply(u2.subtract(BigInteger.ONE).divide(n).modInverse(n)).mod(n);
+        if (decryption) {
+            BigInteger u1 = c.modPow(lambda, nsquare);
+            BigInteger u2 = g.modPow(lambda, nsquare);
+            return (u1.subtract(BigInteger.ONE).divide(n)).multiply(u2.subtract(BigInteger.ONE).divide(n).modInverse(n)).mod(n);
+        }
+        return c;
+    }
+
+    public List<BigInteger> GetPublicKey() {
+        List<BigInteger> res = new ArrayList<>();
+        res.add(n);
+        res.add(nsquare);
+        res.add(g);
+        res.add(BigInteger.valueOf(bitLength));
+        return res;
+    }
+
+    public byte[] GetBytesPublicKey() {
+        List<BigInteger> res = new ArrayList<>();
+        res.add(n);
+        res.add(nsquare);
+        res.add(g);
+        res.add(BigInteger.valueOf(bitLength));
+        return Helper.BigIntegetListToBytes(res);
     }
 }
